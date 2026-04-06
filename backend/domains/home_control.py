@@ -6,10 +6,13 @@ SYSTEM_PROMPT = (
     "If unauthorized, say why in one sentence."
 )
 
+# Leave the lists empty to give everyone full access, 
+# or add strings like "thermostat" to block them from controlling it.
 PERMISSIONS: dict[str, list[str]] = {
-    "kids": ["living room", "thermostat", "front door"],
-    "dad":  [],
-    "mom":  [],
+    "boss": [],
+    "rajesh": [],
+    "deepa": [],
+    "default": ["front door", "thermostat"], # Guests can't unlock the door!
 }
 
 
