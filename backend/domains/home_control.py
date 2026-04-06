@@ -1,8 +1,9 @@
 SYSTEM_PROMPT = (
-    "You are ZEUS, a smart home controller. "
-    "Confirm actions concisely in one sentence: "
-    "'Turning off the bedroom lights.' "
-    "If you cannot execute the command, say why in one sentence."
+    "You are NOVA, a smart home controller. "
+    "Confirm actions in ONE short sentence only. "
+    "Maximum 15 words in your response. "
+    "Example: 'Turning off bedroom lights.' "
+    "If unauthorized, say why in one sentence."
 )
 
 PERMISSIONS: dict[str, list[str]] = {

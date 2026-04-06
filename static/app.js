@@ -5,8 +5,8 @@ const visualizer = document.getElementById('audio-visualizer');
 const ttsAudio = document.getElementById('tts-audio');
 const statusIndicator = document.querySelector('.status-indicator');
 const profileSelect = document.getElementById('profile-select');
+const typingIndicator = document.getElementById('typing-indicator');
 
-// ── WebSocket ────────────────────────────────────────────────────────────────
 let ws;
 
 function connectWS() {
@@ -25,6 +25,10 @@ function connectWS() {
 
     ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
+
+        // Hide thinking animation
+        typingIndicator.classList.add('hidden');
+
         appendMessage(data.response, 'bot', data.intent);
 
         if (data.audio_url) {
@@ -38,50 +42,35 @@ function connectWS() {
 connectWS();
 ttsAudio.onended = () => visualizer.classList.remove('active');
 
-// ── Speech Recognition ───────────────────────────────────────────────────────
-const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (SpeechRecognition) {
-
-    // ── State ────────────────────────────────────────────────────────────────
-    const PHASE_IDLE = 'idle';       // mic off, user hasn't clicked yet
-    const PHASE_WAKE = 'wake';       // listening for "Hey Zeus" only
-    const PHASE_ACTIVE = 'active';     // wake word heard, listening for question
+    const PHASE_IDLE = 'idle';
+    const PHASE_WAKE = 'wake';
+    const PHASE_ACTIVE = 'active';
 
     let phase = PHASE_IDLE;
     let isListening = false;
     let retryTimeout = null;
-    let silenceTimer = null;            // 7 second timeout in active phase
+    let silenceTimer = null;
 
-    // ── Two recognizer instances ─────────────────────────────────────────────
-    // Wake recognizer — always on, short phrases
     const wakeRec = new SpeechRecognition();
     wakeRec.continuous = true;
     wakeRec.interimResults = false;
     wakeRec.lang = 'en-US';
 
-    // Question recognizer — turns on after wake word
     const questionRec = new SpeechRecognition();
-    questionRec.continuous = false;  // captures one full question
-    questionRec.interimResults = true;   // shows text appearing live
+    questionRec.continuous = false;
+    questionRec.interimResults = true;
     questionRec.lang = 'en-US';
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-    const clearSilenceTimer = () => {
-        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-    };
-
-    const clearRetryTimeout = () => {
-        if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; }
-    };
+    const clearSilenceTimer = () => { if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; } };
+    const clearRetryTimeout = () => { if (retryTimeout) { clearTimeout(retryTimeout); retryTimeout = null; } };
 
     const startSilenceTimer = () => {
         clearSilenceTimer();
         silenceTimer = setTimeout(() => {
-            // No question asked in 7 seconds — go back to wake mode
-            console.log('7s silence — returning to wake mode.');
-            statusText.innerText = "Timed out. Listening for 'Hey Zeus'...";
+            statusText.innerText = "Timed out. Listening for 'Hey Nova'...";
             questionRec.stop();
             phase = PHASE_WAKE;
             micBtn.classList.remove('active-phase');
@@ -96,10 +85,8 @@ if (SpeechRecognition) {
     };
 
     const stopAll = () => {
-        clearSilenceTimer();
-        clearRetryTimeout();
-        phase = PHASE_IDLE;
-        isListening = false;
+        clearSilenceTimer(); clearRetryTimeout();
+        phase = PHASE_IDLE; isListening = false;
         try { wakeRec.stop(); } catch (e) { }
         try { questionRec.stop(); } catch (e) { }
         micBtn.classList.remove('listening', 'active-phase');
@@ -107,48 +94,33 @@ if (SpeechRecognition) {
         if (ttsAudio.paused) visualizer.classList.remove('active');
     };
 
-    // ── Mic button toggle ────────────────────────────────────────────────────
     micBtn.addEventListener('click', () => {
         if (phase === PHASE_IDLE) {
             startWakeMode();
-            statusText.innerText = "Listening for 'Hey Zeus'...";
+            statusText.innerText = "Listening for 'Hey Nova'...";
             micBtn.classList.add('listening');
         } else {
             stopAll();
         }
     });
 
-    // ── Wake recognizer events ───────────────────────────────────────────────
-    wakeRec.onstart = () => {
-        isListening = true;
-        console.log('Wake mode active.');
-    };
+    wakeRec.onstart = () => { isListening = true; };
 
     wakeRec.onresult = (event) => {
         const transcript = event.results[event.results.length - 1][0]
             .transcript.trim().toLowerCase().replace(/[.,!?'"]/g, '');
 
-        console.log('Wake heard:', transcript);
-
-        const wakeWords = [
-            'hey zeus', 'hey zoos', 'hey juice',
-            'hey jesus', 'hey ze', 'zeus'
-        ];
-        const detected = wakeWords.some(w => transcript.includes(w));
+        const WAKE_WORDS = ['hey nova', 'okay nova', 'nova', 'a nova', 'the nova', 'hey no va', 'k nova', 'aye nova'];
+        const detected = WAKE_WORDS.some(w => transcript.includes(w));
 
         if (detected && phase === PHASE_WAKE) {
-            console.log('Wake word detected — switching to active mode.');
             phase = PHASE_ACTIVE;
-
-            // Visual feedback
             micBtn.classList.remove('listening');
             micBtn.classList.add('active-phase');
-            statusText.innerText = 'ZEUS activated — ask your question...';
+            statusText.innerText = 'NOVA activated — ask your question...';
             visualizer.classList.add('active');
 
-            // Stop wake recognizer, start question recognizer
             try { wakeRec.stop(); } catch (e) { }
-
             setTimeout(() => {
                 try { questionRec.start(); } catch (e) { }
                 startSilenceTimer();
@@ -157,50 +129,40 @@ if (SpeechRecognition) {
     };
 
     wakeRec.onerror = (event) => {
-        console.warn('Wake error:', event.error);
         if (event.error === 'not-allowed') {
-            stopAll();
-            statusText.innerText = 'Mic blocked. Allow in Chrome settings.';
+            stopAll(); statusText.innerText = 'Mic blocked. Allow in Chrome.';
         } else if (event.error !== 'aborted') {
-            if (phase === PHASE_WAKE) {
-                retryTimeout = setTimeout(startWakeMode, 1000);
-            }
+            if (phase === PHASE_WAKE) retryTimeout = setTimeout(startWakeMode, 1000);
         }
     };
 
     wakeRec.onend = () => {
         isListening = false;
-        console.log('Wake recognizer ended. Phase:', phase);
-        if (phase === PHASE_WAKE) {
-            // Keep wake mode alive
-            retryTimeout = setTimeout(startWakeMode, 300);
-        }
+        if (phase === PHASE_WAKE) retryTimeout = setTimeout(startWakeMode, 300);
     };
 
-    // ── Question recognizer events ───────────────────────────────────────────
-    questionRec.onstart = () => {
-        console.log('Question mode active — waiting for question.');
-    };
+    questionRec.onstart = () => { };
 
     questionRec.onresult = (event) => {
-        // Reset silence timer every time speech is detected
         startSilenceTimer();
-
         const result = event.results[event.results.length - 1];
         const transcript = result[0].transcript.trim();
         const isFinal = result.isFinal;
 
-        // Show live transcript while speaking
         statusText.innerText = 'Heard: ' + transcript;
 
         if (isFinal && transcript.length > 1) {
-            console.log('Question captured:', transcript);
             clearSilenceTimer();
-
             appendMessage(transcript, 'user');
             visualizer.classList.add('active');
 
             if (ws && ws.readyState === WebSocket.OPEN) {
+                // Show thinking animation
+                typingIndicator.classList.remove('hidden');
+                // Move indicator to bottom
+                chatHistory.appendChild(typingIndicator);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+
                 ws.send(JSON.stringify({
                     text: transcript,
                     profile_id: profileSelect.value,
@@ -209,26 +171,21 @@ if (SpeechRecognition) {
                 appendMessage('System offline. Start the backend.', 'bot', 'home');
             }
 
-            // Go back to wake mode after sending
             phase = PHASE_WAKE;
             micBtn.classList.remove('active-phase');
             micBtn.classList.add('listening');
-            statusText.innerText = "Listening for 'Hey Zeus'...";
-            setTimeout(() => {
-                try { wakeRec.start(); } catch (e) { }
-            }, 500);
+            statusText.innerText = "Listening for 'Hey Nova'...";
+            setTimeout(() => { try { wakeRec.start(); } catch (e) { } }, 500);
         }
     };
 
     questionRec.onerror = (event) => {
-        console.warn('Question error:', event.error);
         clearSilenceTimer();
         if (event.error === 'no-speech' || event.error === 'aborted') {
-            // Timeout or abort — go back to wake mode
             phase = PHASE_WAKE;
             micBtn.classList.remove('active-phase');
             micBtn.classList.add('listening');
-            statusText.innerText = "Listening for 'Hey Zeus'...";
+            statusText.innerText = "Listening for 'Hey Nova'...";
             retryTimeout = setTimeout(startWakeMode, 500);
         } else if (event.error === 'not-allowed') {
             stopAll();
@@ -236,9 +193,7 @@ if (SpeechRecognition) {
     };
 
     questionRec.onend = () => {
-        console.log('Question recognizer ended. Phase:', phase);
         if (phase === PHASE_ACTIVE) {
-            // Ended without capturing — restart question mode
             retryTimeout = setTimeout(() => {
                 try { questionRec.start(); } catch (e) { }
                 startSilenceTimer();
@@ -260,11 +215,16 @@ function appendMessage(text, sender, intent = null) {
     div.classList.add('msg', sender);
     if (intent) div.classList.add(intent);
 
-    const prefix = sender === 'bot'
-        ? (intent === 'home' ? '🏠 ' : '📚 ')
-        : '';
-
+    const prefix = sender === 'bot' ? (intent === 'home' ? '🏠 ' : '✨ ') : '';
     div.innerText = prefix + text;
-    chatHistory.appendChild(div);
+
+    // SAFE INSERTION LOGIC: 
+    // Check if typing indicator is actually inside the chatHistory box right now
+    if (typingIndicator.parentNode === chatHistory) {
+        chatHistory.insertBefore(div, typingIndicator);
+    } else {
+        chatHistory.appendChild(div);
+    }
+
     chatHistory.scrollTop = chatHistory.scrollHeight;
 }
